@@ -172,7 +172,7 @@ Thank you for your interest in contributing to our project. Whether it is a bug 
 
 ### 🏷️ Metadata
 
-![miztiik-success-green](https://img.shields.io/badge/Miztiik:Automation:Level-200-green)
+![miztiik-success-green](https://img.shields.io/badge/Miztiik:Automation:Level-100-green)
 
 **Level**: 100
 
