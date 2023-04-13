@@ -3,13 +3,13 @@
 param location string = 'westeurope'
 
 @description('Name of the storage account')
-param storageAccountPrefix string = 'enterpriseA'
+param storageAccountPrefix string = 'enterprise'
 
 @description('Name of the Blob Container')
-param blobContainerName string = 'app-A-Blob'
+param blobContainerName string = 'app-a-blob'
 
 @description('Name of the User Managed Identity')
-param userManagedIdentityName string = 'app-A-Owner'
+param userManagedIdentityName string = 'appAOwner'
 
 var saName = '${storageAccountPrefix}${substring(uniqueString(resourceGroup().id), 0, 6)}'
 
@@ -52,6 +52,7 @@ resource r_userManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities
   location: location
 }
 
+
 // Add permissions to the custom identity to write to the blob storage
 // https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
 
@@ -64,7 +65,7 @@ var conditionStr= '((!(ActionMatches{\'Microsoft.Storage/storageAccounts/blobSer
 // https://learn.microsoft.com/en-us/azure/templates/microsoft.authorization/roleassignments?pivots=deployment-language-bicep
 resource r_attachBlobContributorPermsToRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid('r_attachBlobContributorPermsToRole', r_userManagedIdentity.id, blobOwnerRoleId)
-  scope: r_blobContainerRef
+  scope: r_blobContainer
   properties: {
     description: 'Blob Contributor Permission to ResourceGroup scope'
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', blobOwnerRoleId)
@@ -74,11 +75,6 @@ resource r_attachBlobContributorPermsToRole 'Microsoft.Authorization/roleAssignm
     principalType: 'ServicePrincipal'
 }
 }
-
-resource r_blobContainerRef 'Microsoft.Storage/storageAccounts/blobServices/containers@2021-04-01' = {
-  name: '${saName}/default/${blobContainerName}'
-}
-
 
 
 output storageAccountName string = r_sa.name
