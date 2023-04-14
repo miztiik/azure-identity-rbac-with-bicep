@@ -54,26 +54,25 @@ resource r_userManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities
 
 
 // Add permissions to the custom identity to write to the blob storage
-// https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
-
+// Azure Built-In Roles Ref: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
 param blobOwnerRoleId string = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+param blobContributorRoleId string = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 
 var conditionStr= '((!(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read\'}) AND !(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write\'}) ) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals \'${blobContainerName}\'))'
 
 
 // Refined Scope with conditions
-// https://learn.microsoft.com/en-us/azure/templates/microsoft.authorization/roleassignments?pivots=deployment-language-bicep
-resource r_attachBlobContributorPermsToRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid('r_attachBlobContributorPermsToRole', r_userManagedIdentity.id, blobOwnerRoleId)
+resource r_attachBlobOwnerPermsToRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid('r_attachBlobOwnerPermsToRole', r_userManagedIdentity.id, blobOwnerRoleId)
   scope: r_blobContainer
   properties: {
-    description: 'Blob Contributor Permission to ResourceGroup scope'
+    description: 'Blob Owner Permission to ResourceGroup scope'
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', blobOwnerRoleId)
     principalId: r_userManagedIdentity.properties.principalId
     conditionVersion: '2.0'
     condition: conditionStr
     principalType: 'ServicePrincipal'
-}
+  }
 }
 
 

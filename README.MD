@@ -90,46 +90,49 @@ resource symbolicname 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 ```
 
-The guidance for the `condition` property is expected to be a `string` and gives this example value `@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase 'foo_storage_container'`
+1. **Issue** - The guidance for the `condition` property is expected to be a `string` and gives this example value `@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase 'foo_storage_container'`
 
-If you try to set this in your bicep, you will get an "**Condition Invalid**" error & If you have tried setting up conditions in the portal, you will realize this string is missing the `Action` permitted on the resource. If we take a look at the ARM Documentation<sup>[5]</sup>, the condition will look like this (_formatted for readability_),
+    If you try to set this in your bicep, you will get an "**Condition Invalid**" error & If you have tried setting up conditions in the portal, you will realize this string is missing the `Action` permitted on the resource. If we take a look at the ARM Documentation<sup>[5]</sup>, the condition will look like this (_formatted for readability_),
 
-```
-(
-  (
-    !(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'})
-  )
-  OR 
-  (
-    @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals 'blobs-example-container'
-  )
-)
-```
+    ```
+    (
+      (
+        !(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'})
+      )
+      OR 
+      (
+        @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals 'blobs-example-container'
+      )
+    )
+    ```
 
-With this knowledge we can create our bicep with a Blob owner Role with `read` and `write` privileges like this. To build the string properly and to improve readability of the code, I have put the condition in another string.
+1. **Issue** - The doc doesn't clearly say if `conditionVersion` is a required field. But missing that out will result in an error. Currently the value is hard bound to `2.0`.
 
-
-```bicep
-// Azure Built-In Roles Ref: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
-param blobOwnerRoleId string = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
-
-var conditionStr= '((!(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read\'}) AND !(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write\'}) ) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals \'${blobContainerName}\'))'
+    With this knowledge we can create our bicep with a Blob owner Role with `read` and `write` privileges like this. To build the string properly and to improve readability of the code, I have put the condition in another string.
 
 
-// Refined Scope with conditions
-resource r_attachBlobContributorPermsToRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid('r_attachBlobContributorPermsToRole', r_userManagedIdentity.id, blobOwnerRoleId)
-  scope: r_blobContainerRef
-  properties: {
-    description: 'Blob Contributor Permission to ResourceGroup scope'
-    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', blobOwnerRoleId)
-    principalId: r_userManagedIdentity.properties.principalId
-    conditionVersion: '2.0'
-    condition: conditionStr
-    principalType: 'ServicePrincipal'
-  }
-}
-```
+    ```bicep
+    // Azure Built-In Roles Ref: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
+    param blobOwnerRoleId string = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+    param blobContributorRoleId string = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+
+    var conditionStr= '((!(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read\'}) AND !(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write\'}) ) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals \'${blobContainerName}\'))'
+
+
+    // Refined Scope with conditions
+    resource r_attachBlobOwnerPermsToRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+      name: guid('r_attachBlobOwnerPermsToRole', r_userManagedIdentity.id, blobOwnerRoleId)
+      scope: r_blobContainer
+      properties: {
+        description: 'Blob Owner Permission to ResourceGroup scope'
+        roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', blobOwnerRoleId)
+        principalId: r_userManagedIdentity.properties.principalId
+        conditionVersion: '2.0'
+        condition: conditionStr
+        principalType: 'ServicePrincipal'
+      }
+    }
+    ```
 
 Putting it all toegether, the `main.bicep` in this blog has all the code. Let us deploy this bicep,(_update the RG Name_)
 
@@ -150,6 +153,8 @@ az deployment group create \
 ```
 
 Upon successful deployment you can check the Role Assignment conditions from the storage account portal.
+
+![Miztiik Automaton: Azure Virtual Machine Access To Blob Storage With User Identity](images/miztiik_automation_user_managed_identity_002.png)
 
 
 ### 💡 Help/Suggestions or 🐛 Bugs
